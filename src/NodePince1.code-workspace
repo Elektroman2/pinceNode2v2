@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../NodePince1"
+		},
+		{
+			"name": "PinceNode1",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"new": "cpp"
+		}
+	}
+}
