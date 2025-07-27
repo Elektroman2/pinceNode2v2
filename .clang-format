@@ -1,0 +1,53 @@
+---
+AlignAfterOpenBracket: 'Align'
+AlignArrayOfStructures: Right
+AlignConsecutiveAssignments: AcrossComments
+AlignConsecutiveBitFields: AcrossEmptyLines
+AlignEscapedNewlines: 'Left'
+AlignOperands: 'AlignAfterOperator'
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement : 'Always'
+  AfterEnum: true
+  AfterFunction: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeElse: true
+  BeforeWhile: false
+  SplitEmptyFunction: true
+AllowAllParametersOfDeclarationOnNextLine: 'false'
+AllowShortLoopsOnASingleLine: 'false'
+BinPackParameters: 'true'
+BreakAdjacentStringLiterals: true
+BreakBeforeTernaryOperators : true
+BreakArrays: true
+ColumnLimit: '120'
+IncludeBlocks: 'Merge'
+IndentCaseLabels: 'true'
+IndentWidth: '4'
+IndentWrappedFunctionNames: 'false'
+KeepEmptyLinesAtTheStartOfBlocks: 'false'
+
+MaxEmptyLinesToKeep: '2'
+PenaltyBreakBeforeFirstCallParameter: '0'
+PointerAlignment: Right
+QualifierAlignment: Left
+ReferenceAlignment: Right
+SortIncludes: 'false'
+SpaceBeforeAssignmentOperators: 'true'
+SpaceBeforeParens: Never
+SpaceInEmptyParentheses: 'false'
+SpacesBeforeTrailingComments: '2'
+SpacesInCStyleCastParentheses: 'false'
+SpacesInContainerLiterals: 'true'
+SpacesInParentheses: 'true'
+Standard: Auto
+UseTab: Never
+
+...
