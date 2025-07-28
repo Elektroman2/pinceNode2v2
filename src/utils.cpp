@@ -7,7 +7,7 @@ int32_t adc_to_bar( uint16_t adc_value )
     }
     else
     {
-        return ( 1554 * adc_value - 39740 ) / 10000;  // Bar * 10000
+        return ( 1.588 * (float)adc_value - 397.1 );  // Bar * 10000
     }
 }
 // ADC --> cmH2O, egész szám (centiméter, két tizedessel)
@@ -19,6 +19,6 @@ int32_t adc_to_cmH2O( uint16_t adc_value )
     }
     else
     {
-        return ( 159 * adc_value - 40587 ) / 100;
+        return ( ( 1.588 * 1.0197 ) * (float)adc_value - ( 397.1 * 1.0197 ) );
     }
 }

@@ -39,14 +39,17 @@ HAMqtt mqtt( client, device, 25 );
 
 
 unsigned long AnalogLastUpdateAt   = 0;
-unsigned long AnalogUpdateInterval = 550;
+unsigned long AnalogUpdateInterval = 150;
+
+unsigned long ControlLastUpdateAt   = 0;
+unsigned long ControlUpdateInterval = 450;
 
 unsigned long flowLastUpdateAt   = 0;
 unsigned long flowUpdateInterval = 2000;
 
 unsigned long distanceLastUpdateAt = 0;
 
-unsigned long distanceInterval = 2000;
+unsigned long distanceInterval = 500;
 
 HASwitch led( "Led1" );
 bool compressorState = false;
@@ -61,8 +64,8 @@ filter airPressureFilter;
 
 HASensorNumber airPressureRaw{ "airPressureRaw", HASensorNumber::PrecisionP3 };
 HASensorNumber airPressureActual{ "airPressureActual", HASensorNumber::PrecisionP3 };
-HASensorNumber airPressureTarget{ "airPressureTarget", HASensorNumber::PrecisionP3 };
-HASensorNumber airPressureHystersis{ "airPressureTarget", HASensorNumber::PrecisionP3 };
+HANumber airPressureTarget{ "airPressureTarget", HASensorNumber::PrecisionP0 };
+HANumber airPressureHystersis{ "airPressureHysteresis", HASensorNumber::PrecisionP0 };
 
 uint32_t wellLevelRawValue;
 uint32_t wellLevelValue;
@@ -149,6 +152,36 @@ void wellVolumeOnCommand( HANumeric number, HANumber *sender )
 
     sender->setState( number );  // report the selected option back to the HA panel
 }
+void airPressureTargetOnCommand( HANumeric number, HANumber *sender )
+{
+    int32_t value = number.toInt32();
+    if( value < 0 )
+    {
+        Serial.println( "Air pressure target command arrived: reset" );
+        airPressureTargetValue = 0;
+    }
+    else
+    {
+        Serial.printf( "Air pressure target command arrived: %d\r\n", value );
+        airPressureTargetValue = value;
+    }
+    sender->setState( value );  // report the selected option back to the HA panel
+}
+void airPressureHysteresisOnCommand( HANumeric number, HANumber *sender )
+{
+    int32_t value = number.toInt32();
+    if( value < 0 )
+    {
+        Serial.println( "Air pressure hysteresis command arrived: reset" );
+        airPressureHysteresisValue = 0;
+    }
+    else
+    {
+        Serial.printf( "Air pressure hysteresis command arrived: %d\r\n", value );
+        airPressureHysteresisValue = value;
+    }
+    sender->setState( value );  // report the selected option back to the HA panel
+}
 
 const uint8_t pageCount     = 3;
 uint8_t pageCntr            = 0;
@@ -167,9 +200,9 @@ void displayPrint()
 
     if( millis() > ( pageSwitchLastTick + pageSwitchDelay ) )
     {
-        if( ( ++pageCntr ) == pageCount )
+        // if( ( ++pageCntr ) == pageCount )
         {
-            pageCntr = 0;
+            pageCntr = 1;
         }
         Serial.printf( "Display switching to page %d\r\n", pageCntr );
         pageSwitchLastTick = millis();
@@ -195,9 +228,9 @@ void displayPrint()
             break;
         case 2:
             display.drawString( 0, 0, "Levegőnyomás: " );
-            display.drawString( 0, 16, String( (float)airPressureValue / ( 10000.0 ) ) + " bar" );
+            display.drawString( 0, 16, String( (float)airPressureValue / ( 1000.0 ) ) + " bar" );
             display.drawString( 0, 32, "Gyors levegőnyomás: " );
-            display.drawString( 0, 48, String( (float)airPressureValueUnfilterd / ( 10000.0 ) ) + " bar" );
+            display.drawString( 0, 48, String( (float)wellLevelValue ) + " cm" );
             break;
 
         default:
@@ -280,11 +313,18 @@ void setup()
     airPressureTarget.setName( "Air pressure Target" );
     airPressureTarget.setIcon( "mdi:gauge" );
     airPressureTarget.setUnitOfMeasurement( "bar" );
+    airPressureTarget.setMin( 0 );
+    airPressureTarget.setMax( 100000 );
+    airPressureTarget.onCommand( airPressureTargetOnCommand );
+    airPressureTarget.setRetain( true );
 
     airPressureHystersis.setName( "Air pressure Hystersis" );
     airPressureHystersis.setIcon( "mdi:gauge" );
     airPressureHystersis.setUnitOfMeasurement( "bar" );
-
+    airPressureHystersis.setMin( 0 );
+    airPressureHystersis.setMax( 100000 );
+    airPressureHystersis.onCommand( airPressureHysteresisOnCommand );
+    airPressureHystersis.setRetain( true );
 
     wellLevelRaw.setName( "Well level raw" );
     wellLevelRaw.setIcon( "mdi:ArrowExpandVertical" );
@@ -413,7 +453,7 @@ void loop()
     }
     if( ( millis() > ( distanceLastUpdateAt + distanceInterval ) ) && !distanceWait )
     {
-        // Serial.println( "Get distance" );
+        Serial.println( "Get distance" );
 
         getDistance();
         distanceWait = true;
@@ -426,6 +466,7 @@ void loop()
         TankDistance.setValue( TankDistanceValue );
         distanceLastUpdateAt = millis();
         distanceWait         = 0;
+        Serial.println( "Tank distance: " + String( TankDistanceValue ) + " mm" );
     }
 
     if( millis() > ( flowLastUpdateAt + flowUpdateInterval ) )
@@ -446,20 +487,41 @@ void loop()
 
         airPressureRawValue       = airPressureFilter.doFilter( analogRead( COMPRESSOR_PRESSURE_AIN_PIN ) );
         airPressureValue          = adc_to_bar( airPressureRawValue );
-        airPressureValueUnfilterd = adc_to_bar( analogRead( COMPRESSOR_PRESSURE_AIN_PIN ) );
-        airPressureActual.setValue( airPressureValue );
+        airPressureValueUnfilterd = adc_to_bar( wellLevelFilter.doFilter( analogRead( WELL_PRESSURE_AIN_PIN ) ) );
+        airPressureActual.setValue( (float)( airPressureValue / 1000.0 ) );
         airPressureRaw.setValue( airPressureRawValue );
-        Serial.printf( "Air pressure raw: %d, value: %f\r\n", airPressureRawValue, (float)airPressureValue / 10.0 );
+        // Serial.printf( "Air pressure raw: %d, value: %f\r\n", airPressureRawValue, (float)airPressureValue );
 
         wellLevelRawValue = wellLevelFilter.doFilter( analogRead( WELL_PRESSURE_AIN_PIN ) );
         wellLevelValue    = adc_to_cmH2O( wellLevelRawValue );
         wellLevelRaw.setValue( wellLevelRawValue );
         wellLevel.setValue( wellLevelValue );
 
-        Serial.printf( "Well level raw: %d, value: %d cm\r\n", wellLevelRawValue, wellLevelValue );
-        // compressor.setState( digitalRead( WELL_COMPRESSOR_IN_PIN ) );
+        // Serial.printf( "Well level raw: %d, value: %d cm\r\n", wellLevelRawValue, wellLevelValue );
+        //  compressor.setState( digitalRead( WELL_COMPRESSOR_IN_PIN ) );
         //
     }
+    if( millis() > ( ControlLastUpdateAt + ControlUpdateInterval ) )
+    {
+        ControlLastUpdateAt = millis();
+        // Serial.println( "Control update Target: " + String( airPressureTargetValue ) +
+        //          ", Hysteresis: " + String( airPressureHysteresisValue ) );
+        if( airPressureValue < ( airPressureTargetValue - airPressureHysteresisValue ) )
+        {
+            digitalWrite( COMPRESSOR_OUT_PIN, HIGH );
+            compressorState = true;
+            compressor.setState( true );
+            //   Serial.println( "Compressor ON" );
+        }
+        else if( airPressureValue > ( airPressureTargetValue + airPressureHysteresisValue ) )
+        {
+            digitalWrite( COMPRESSOR_OUT_PIN, LOW );
+            compressorState = false;
+            compressor.setState( false );
+            // Serial.println( "Compressor OFF" );
+        }
+    }
+
     if( millis() > ( displayLastTick + displayDelay ) )
     {
         displayLastTick = millis();
